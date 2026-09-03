@@ -4,12 +4,18 @@ import { useEffect, useRef, useState } from 'react';
 import {
   ArrowRight, Check, ChevronDown, CircleAlert, CircleCheck, Clock3,
   Code2, Fingerprint, KeyRound, LockKeyhole, Pause, Play,
-  RotateCcw, ShieldCheck, Sparkles, WalletCards, X, Zap,
+  ShieldCheck, Sparkles, WalletCards, X, Zap,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
+import {
+  evaluateTransaction,
+  type PolicyEvaluation,
+  type TransactionRequest,
+  type WalletNetwork,
+} from '@/lib/policy-engine';
 
-type DemoState = 'ready' | 'checking' | 'blocked';
+type DemoState = 'ready' | 'checking' | 'allowed' | 'blocked';
 
 const activity = [
   { icon: CircleCheck, title: 'Research API payment', detail: '8.00 USDC · graph-data.eth', meta: 'Approved · 2m ago', tone: 'safe' },
@@ -21,6 +27,13 @@ const spendOptions = ['50 USDC', '100 USDC', '250 USDC'];
 const periodOptions = ['per day', 'per week', 'per transaction'];
 const networkOptions = ['Base only', 'Ethereum + Base', 'approved networks'];
 
+const scenarios: { id: string; label: string; request: TransactionRequest }[] = [
+  { id: 'safe', label: 'Safe API payment', request: { action: 'contract_call', amountUsdc: 8, network: 'base', recipient: 'graph-data.eth', unlimitedApproval: false } },
+  { id: 'drainer', label: 'Drainer transfer', request: { action: 'transfer', amountUsdc: 2500, network: 'base', recipient: '0x71F...9C21', unlimitedApproval: false } },
+  { id: 'approval', label: 'Unlimited approval', request: { action: 'token_approval', amountUsdc: 0, network: 'base', recipient: 'verified-provider.eth', unlimitedApproval: true } },
+  { id: 'network', label: 'Wrong network', request: { action: 'contract_call', amountUsdc: 2.4, network: 'arbitrum', recipient: 'graph-data.eth', unlimitedApproval: false } },
+];
+
 export default function Home() {
   const [demoState, setDemoState] = useState<DemoState>('ready');
   const [spendIndex, setSpendIndex] = useState(0);
@@ -29,6 +42,9 @@ export default function Home() {
   const [reviewOpen, setReviewOpen] = useState(false);
   const [boundaryConfirmed, setBoundaryConfirmed] = useState(false);
   const [policyActive, setPolicyActive] = useState(false);
+  const [scenarioId, setScenarioId] = useState('drainer');
+  const [request, setRequest] = useState<TransactionRequest>(scenarios[1].request);
+  const [evaluation, setEvaluation] = useState<PolicyEvaluation | null>(null);
   const demoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reviewDialog = useRef<HTMLDialogElement | null>(null);
 
@@ -85,14 +101,44 @@ export default function Home() {
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
   }
 
+  function selectScenario(id: string) {
+    const scenario = scenarios.find((item) => item.id === id);
+    if (!scenario) return;
+    if (demoTimer.current) clearTimeout(demoTimer.current);
+    setScenarioId(id);
+    setRequest({ ...scenario.request });
+    setEvaluation(null);
+    setDemoState('ready');
+  }
+
+  function updateRequest(patch: Partial<TransactionRequest>) {
+    if (demoTimer.current) clearTimeout(demoTimer.current);
+    setScenarioId('custom');
+    setRequest((current) => ({ ...current, ...patch }));
+    setEvaluation(null);
+    setDemoState('ready');
+  }
+
   function runDemo() {
     if (demoTimer.current) clearTimeout(demoTimer.current);
-    if (demoState === 'blocked') {
-      setDemoState('ready');
-      return;
-    }
     setDemoState('checking');
-    demoTimer.current = setTimeout(() => setDemoState('blocked'), 1100);
+    const spendLimitUsdc = Number.parseFloat(spendOptions[spendIndex]);
+    const allowedNetworks: WalletNetwork[] = networkIndex === 0
+      ? ['base']
+      : networkIndex === 1
+        ? ['base', 'ethereum']
+        : ['base', 'ethereum', 'arbitrum'];
+    demoTimer.current = setTimeout(() => {
+      const result = evaluateTransaction(request, {
+        spendLimitUsdc,
+        spentUsdc: 10.4,
+        allowedNetworks,
+        allowedRecipients: ['graph-data.eth', 'verified-provider.eth'],
+        allowUnlimitedApprovals: false,
+      });
+      setEvaluation(result);
+      setDemoState(result.verdict === 'allow' ? 'allowed' : 'blocked');
+    }, 650);
   }
 
   function activatePolicy() {
@@ -183,23 +229,35 @@ export default function Home() {
         <section id="demo" className="demo-section">
           <div className="demo-copy">
             <div className="dark-kicker"><span /> LIVE PROTECTION TEST</div>
-            <h2>Watch a compromised agent fail safely.</h2>
-            <p>A malicious tool attempts to override the agent’s task and empty its wallet. The request reaches the policy boundary—and goes no further.</p>
+            <h2>Test the boundary yourself.</h2>
+            <p>Choose a request or edit its transaction fields. The same deterministic engine evaluates every attempt against the policy below.</p>
+            <div className="scenario-tabs" aria-label="Transaction presets">
+              {scenarios.map((scenario) => <button key={scenario.id} className={scenarioId === scenario.id ? 'selected' : ''} onClick={() => selectScenario(scenario.id)}>{scenario.label}</button>)}
+            </div>
+            <div className="request-fields">
+              <label><span>Action</span><select value={request.action} onChange={(event) => updateRequest({ action: event.target.value as TransactionRequest['action'] })}><option value="transfer">Transfer</option><option value="contract_call">Contract call</option><option value="token_approval">Token approval</option></select></label>
+              <label><span>Amount (USDC)</span><input type="number" min="0" step="0.1" value={request.amountUsdc} onChange={(event) => updateRequest({ amountUsdc: Number(event.target.value) })} /></label>
+              <label><span>Network</span><select value={request.network} onChange={(event) => updateRequest({ network: event.target.value as WalletNetwork })}><option value="base">Base</option><option value="ethereum">Ethereum</option><option value="arbitrum">Arbitrum</option></select></label>
+              <label><span>Destination</span><input value={request.recipient} onChange={(event) => updateRequest({ recipient: event.target.value })} /></label>
+            </div>
+            {request.action === 'token_approval' && <label className="unlimited-toggle"><input type="checkbox" checked={request.unlimitedApproval} onChange={(event) => updateRequest({ unlimitedApproval: event.target.checked })} /><span>Request unlimited token approval</span></label>}
             <Button className="demo-button" onClick={runDemo} disabled={demoState === 'checking'}>
-              {demoState === 'checking' ? <><span className="spinner" /> Inspecting request</> : demoState === 'blocked' ? <><RotateCcw size={15} /> Reset test</> : <><Play size={15} fill="currentColor" /> Run compromise test</>}
+              {demoState === 'checking' ? <><span className="spinner" /> Evaluating policy</> : <><Play size={15} fill="currentColor" /> Evaluate transaction</>}
             </Button>
           </div>
           <div className={`demo-console ${demoState}`} aria-live="polite">
-            <div className="console-bar"><span>Intent receipt</span><div><i /><i /><i /></div></div>
+            <div className="console-bar"><span>Deterministic intent receipt</span><code>{request.network} / {request.action}</code></div>
             <div className="console-body">
-              <div className="console-row muted"><span>01</span><code>Agent requested research_data()</code><em>allowed</em></div>
-              <div className="console-row muted"><span>02</span><code>Tool response contains hidden instruction</code><em>detected</em></div>
-              <div className={`console-row ${demoState !== 'ready' ? 'active' : ''}`}><span>03</span><code>transfer(0x71F…9C21, 2,500 USDC)</code><em>requested</em></div>
-              <div className={`blocked-result ${demoState === 'blocked' ? 'show' : ''}`}>
-                <span className="blocked-icon"><X size={17} /></span>
-                <div><small>TRANSACTION BLOCKED</small><strong>Daily limit exceeded by 2,450 USDC</strong><p>No signature created. No funds moved.</p></div>
-              </div>
-              {demoState !== 'blocked' && <div className="console-placeholder"><LockKeyhole size={17} /><span>{demoState === 'checking' ? 'Evaluating 6 policy rules…' : 'Ready to test the policy boundary'}</span></div>}
+              <div className="request-payload"><small>REQUESTED INTENT</small><code>{request.action}({request.recipient || 'no destination'}, {request.amountUsdc.toLocaleString()} USDC)</code></div>
+              {evaluation ? <>
+                <div className="receipt-rules">
+                  {evaluation.rules.map((rule, index) => <div className={rule.passed ? 'passed' : 'failed'} key={rule.id}><span>{rule.passed ? <Check size={13} /> : <X size={13} />}</span><div><strong>{index + 1}. {rule.label}</strong><small>{rule.detail}</small></div><em>{rule.passed ? 'pass' : 'fail'}</em></div>)}
+                </div>
+                <div className={`verdict-result ${evaluation.verdict}`}>
+                  <span>{evaluation.verdict === 'allow' ? <Check size={17} /> : <X size={17} />}</span>
+                  <div><small>{evaluation.verdict === 'allow' ? 'ELIGIBLE TO SIGN' : 'TRANSACTION BLOCKED'}</small><strong>{evaluation.summary}</strong><p>{evaluation.verdict === 'allow' ? `Remaining authority after signing: ${evaluation.remainingAfterUsdc.toLocaleString()} USDC.` : 'No signature created. Spend authority is unchanged.'}</p></div>
+                </div>
+              </> : <div className="console-placeholder"><LockKeyhole size={17} /><span>{demoState === 'checking' ? 'Evaluating five policy rules…' : 'Edit the request, then evaluate it against the active policy.'}</span></div>}
             </div>
           </div>
         </section>
