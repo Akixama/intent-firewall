@@ -16,6 +16,14 @@ import {
 } from '@/lib/policy-engine';
 
 type DemoState = 'ready' | 'checking' | 'allowed' | 'blocked';
+type ExecutionProof = {
+  mode: 'base-sepolia' | 'policy-blocked' | 'fallback';
+  label: string;
+  detail: string;
+  blockNumber?: number | null;
+  gasUsed?: number | null;
+  chainId?: number;
+};
 
 const activity = [
   { icon: CircleCheck, title: 'Research API payment', detail: '8.00 USDC · graph-data.eth', meta: 'Approved · 2m ago', tone: 'safe' },
@@ -45,12 +53,8 @@ export default function Home() {
   const [scenarioId, setScenarioId] = useState('drainer');
   const [request, setRequest] = useState<TransactionRequest>(scenarios[1].request);
   const [evaluation, setEvaluation] = useState<PolicyEvaluation | null>(null);
-  const demoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [executionProof, setExecutionProof] = useState<ExecutionProof | null>(null);
   const reviewDialog = useRef<HTMLDialogElement | null>(null);
-
-  useEffect(() => () => {
-    if (demoTimer.current) clearTimeout(demoTimer.current);
-  }, []);
 
   useEffect(() => {
     const dialog = reviewDialog.current;
@@ -104,31 +108,44 @@ export default function Home() {
   function selectScenario(id: string) {
     const scenario = scenarios.find((item) => item.id === id);
     if (!scenario) return;
-    if (demoTimer.current) clearTimeout(demoTimer.current);
     setScenarioId(id);
     setRequest({ ...scenario.request });
     setEvaluation(null);
+    setExecutionProof(null);
     setDemoState('ready');
   }
 
   function updateRequest(patch: Partial<TransactionRequest>) {
-    if (demoTimer.current) clearTimeout(demoTimer.current);
     setScenarioId('custom');
     setRequest((current) => ({ ...current, ...patch }));
     setEvaluation(null);
+    setExecutionProof(null);
     setDemoState('ready');
   }
 
-  function runDemo() {
-    if (demoTimer.current) clearTimeout(demoTimer.current);
+  async function runDemo() {
     setDemoState('checking');
+    setEvaluation(null);
+    setExecutionProof(null);
     const spendLimitUsdc = Number.parseFloat(spendOptions[spendIndex]);
     const allowedNetworks: WalletNetwork[] = networkIndex === 0
       ? ['base']
       : networkIndex === 1
         ? ['base', 'ethereum']
         : ['base', 'ethereum', 'arbitrum'];
-    demoTimer.current = setTimeout(() => {
+
+    try {
+      const response = await fetch('/api/evaluate', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ request, spendLimitUsdc, networkMode: networkIndex }),
+      });
+      if (!response.ok) throw new Error('Evaluation service unavailable.');
+      const result = await response.json() as { evaluation: PolicyEvaluation; execution: ExecutionProof };
+      setEvaluation(result.evaluation);
+      setExecutionProof(result.execution);
+      setDemoState(result.evaluation.verdict === 'allow' ? 'allowed' : 'blocked');
+    } catch {
       const result = evaluateTransaction(request, {
         spendLimitUsdc,
         spentUsdc: 10.4,
@@ -137,8 +154,13 @@ export default function Home() {
         allowUnlimitedApprovals: false,
       });
       setEvaluation(result);
+      setExecutionProof({
+        mode: 'fallback',
+        label: 'Deterministic fallback used',
+        detail: 'The network preflight was unavailable, so the local policy engine produced this receipt.',
+      });
       setDemoState(result.verdict === 'allow' ? 'allowed' : 'blocked');
-    }, 650);
+    }
   }
 
   function activatePolicy() {
@@ -230,7 +252,7 @@ export default function Home() {
           <div className="demo-copy">
             <div className="dark-kicker"><span /> LIVE PROTECTION TEST</div>
             <h2>Test the boundary yourself.</h2>
-            <p>Choose a request or edit its transaction fields. The same deterministic engine evaluates every attempt against the policy below.</p>
+            <p>Choose a request or edit its fields. Blocked intents stop locally; allowed intents are preflighted against live Base Sepolia state without broadcasting a transaction.</p>
             <div className="scenario-tabs" aria-label="Transaction presets">
               {scenarios.map((scenario) => <button key={scenario.id} className={scenarioId === scenario.id ? 'selected' : ''} onClick={() => selectScenario(scenario.id)}>{scenario.label}</button>)}
             </div>
@@ -242,22 +264,29 @@ export default function Home() {
             </div>
             {request.action === 'token_approval' && <label className="unlimited-toggle"><input type="checkbox" checked={request.unlimitedApproval} onChange={(event) => updateRequest({ unlimitedApproval: event.target.checked })} /><span>Request unlimited token approval</span></label>}
             <Button className="demo-button" onClick={runDemo} disabled={demoState === 'checking'}>
-              {demoState === 'checking' ? <><span className="spinner" /> Evaluating policy</> : <><Play size={15} fill="currentColor" /> Evaluate transaction</>}
+              {demoState === 'checking' ? <><span className="spinner" /> Running preflight</> : <><Play size={15} fill="currentColor" /> Run policy + preflight</>}
             </Button>
           </div>
           <div className={`demo-console ${demoState}`} aria-live="polite">
-            <div className="console-bar"><span>Deterministic intent receipt</span><code>{request.network} / {request.action}</code></div>
+            <div className="console-bar"><span>Verifiable intent receipt</span><code>Base Sepolia · {request.network} / {request.action}</code></div>
             <div className="console-body">
               <div className="request-payload"><small>REQUESTED INTENT</small><code>{request.action}({request.recipient || 'no destination'}, {request.amountUsdc.toLocaleString()} USDC)</code></div>
               {evaluation ? <>
                 <div className="receipt-rules">
                   {evaluation.rules.map((rule, index) => <div className={rule.passed ? 'passed' : 'failed'} key={rule.id}><span>{rule.passed ? <Check size={13} /> : <X size={13} />}</span><div><strong>{index + 1}. {rule.label}</strong><small>{rule.detail}</small></div><em>{rule.passed ? 'pass' : 'fail'}</em></div>)}
                 </div>
+                {executionProof && <div className={`network-proof ${executionProof.mode}`}>
+                  <span>{executionProof.mode === 'base-sepolia' ? <Zap size={15} /> : executionProof.mode === 'policy-blocked' ? <LockKeyhole size={15} /> : <Clock3 size={15} />}</span>
+                  <div><small>EXECUTION PROOF</small><strong>{executionProof.label}</strong><p>{executionProof.detail}</p></div>
+                  <code>{executionProof.mode === 'base-sepolia'
+                    ? `chain ${executionProof.chainId} · block ${executionProof.blockNumber ?? 'pending'} · ${executionProof.gasUsed ?? '—'} gas`
+                    : executionProof.mode === 'policy-blocked' ? 'RPC not contacted' : 'local mode'}</code>
+                </div>}
                 <div className={`verdict-result ${evaluation.verdict}`}>
                   <span>{evaluation.verdict === 'allow' ? <Check size={17} /> : <X size={17} />}</span>
                   <div><small>{evaluation.verdict === 'allow' ? 'ELIGIBLE TO SIGN' : 'TRANSACTION BLOCKED'}</small><strong>{evaluation.summary}</strong><p>{evaluation.verdict === 'allow' ? `Remaining authority after signing: ${evaluation.remainingAfterUsdc.toLocaleString()} USDC.` : 'No signature created. Spend authority is unchanged.'}</p></div>
                 </div>
-              </> : <div className="console-placeholder"><LockKeyhole size={17} /><span>{demoState === 'checking' ? 'Evaluating five policy rules…' : 'Edit the request, then evaluate it against the active policy.'}</span></div>}
+              </> : <div className="console-placeholder"><LockKeyhole size={17} /><span>{demoState === 'checking' ? 'Evaluating policy, then checking Base Sepolia…' : 'Edit the request, then run the policy and network preflight.'}</span></div>}
             </div>
           </div>
         </section>
@@ -276,7 +305,7 @@ export default function Home() {
               <div><span><Check size={13} /> 6 deterministic rules</span><span><Clock3 size={13} /> Expires Sep 13</span><span><KeyRound size={13} /> User confirmation required</span></div>
               <Button onClick={() => { setBoundaryConfirmed(false); setReviewOpen(true); }}>{policyActive ? 'Review active policy' : 'Review rules'} <ArrowRight size={15} /></Button>
             </div>
-            {policyActive && <div className="activation-receipt" role="status"><ShieldCheck size={17} /><div><strong>Demo policy activated</strong><span>Future simulated requests will be evaluated before signing.</span></div><small>Just now</small></div>}
+            {policyActive && <output className="activation-receipt"><ShieldCheck size={17} /><div><strong>Demo policy activated</strong><span>Future simulated requests will be evaluated before signing.</span></div><small>Just now</small></output>}
           </div>
         </section>
 
