@@ -4,9 +4,18 @@ import { useEffect, useRef, useState } from 'react';
 import {
   ArrowRight, Check, ChevronDown, CircleAlert, CircleCheck, Clock3,
   Code2, Fingerprint, KeyRound, LockKeyhole, Pause, Play,
-  ShieldCheck, Sparkles, WalletCards, X, Zap,
+  RotateCcw, ShieldCheck, Sparkles, WalletCards, X, Zap,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Progress } from '@/components/ui/progress';
 
 type DemoState = 'ready' | 'checking' | 'blocked';
@@ -26,6 +35,9 @@ export default function Home() {
   const [spendIndex, setSpendIndex] = useState(0);
   const [periodIndex, setPeriodIndex] = useState(0);
   const [networkIndex, setNetworkIndex] = useState(0);
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const [boundaryConfirmed, setBoundaryConfirmed] = useState(false);
+  const [policyActive, setPolicyActive] = useState(false);
   const demoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => () => {
@@ -76,8 +88,18 @@ export default function Home() {
 
   function runDemo() {
     if (demoTimer.current) clearTimeout(demoTimer.current);
+    if (demoState === 'blocked') {
+      setDemoState('ready');
+      return;
+    }
     setDemoState('checking');
     demoTimer.current = setTimeout(() => setDemoState('blocked'), 1100);
+  }
+
+  function activatePolicy() {
+    if (!boundaryConfirmed) return;
+    setPolicyActive(true);
+    setReviewOpen(false);
   }
 
   return (
@@ -107,7 +129,7 @@ export default function Home() {
         <section id="product" className="product-stage" aria-label="Intent Firewall product preview">
           <div className="proof-pill">
             <div className="avatar-stack" aria-hidden="true"><span>AI</span><span><KeyRound size={13} /></span><span><ShieldCheck size={13} /></span></div>
-            <div><strong>1,284</strong><small>agent actions checked</small></div>
+            <div><strong>Sample session</strong><small>3 simulated actions below</small></div>
           </div>
 
           <div className="app-window">
@@ -153,6 +175,10 @@ export default function Home() {
             <article><span><ShieldCheck size={20} /></span><h3>Enforced at signing</h3><p>Unsafe calls never receive a signature. A compromised agent cannot talk its way around the rules.</p></article>
             <article><span><Code2 size={20} /></span><h3>Receipts, not mystery</h3><p>Every decision shows the requested call, evaluated rule, data source, and final outcome.</p></article>
           </div>
+          <div className="boundary-note">
+            <LockKeyhole size={18} />
+            <p><strong>The protection boundary matters.</strong> Intent Firewall can stop drainers only when every wallet action is routed through its policy-controlled signer. It cannot protect keys or approvals that bypass that boundary.</p>
+          </div>
         </section>
 
         <section id="demo" className="demo-section">
@@ -161,7 +187,7 @@ export default function Home() {
             <h2>Watch a compromised agent fail safely.</h2>
             <p>A malicious tool attempts to override the agent’s task and empty its wallet. The request reaches the policy boundary—and goes no further.</p>
             <Button className="demo-button" onClick={runDemo} disabled={demoState === 'checking'}>
-              {demoState === 'checking' ? <><span className="spinner" /> Inspecting request</> : <><Play size={15} fill="currentColor" /> Run compromise test</>}
+              {demoState === 'checking' ? <><span className="spinner" /> Inspecting request</> : demoState === 'blocked' ? <><RotateCcw size={15} /> Reset test</> : <><Play size={15} fill="currentColor" /> Run compromise test</>}
             </Button>
           </div>
           <div className={`demo-console ${demoState}`} aria-live="polite">
@@ -181,8 +207,8 @@ export default function Home() {
 
         <section id="policy" className="policy-section">
           <div className="policy-heading"><div><div className="section-kicker">POLICY COMPOSER</div><h2>Say what the agent may do.<br />We’ll make it enforceable.</h2></div><p>Natural language makes the policy easy to write. Deterministic rules make it safe to trust.</p></div>
-          <div className="policy-card">
-            <div className="composer-label"><Sparkles size={15} /> Research Agent policy</div>
+          <div className={`policy-card ${policyActive ? 'is-active' : ''}`}>
+            <div className="composer-label"><Sparkles size={15} /> Research Agent policy {policyActive && <span className="active-policy-badge"><Check size={12} /> Demo active</span>}</div>
             <p className="policy-sentence">
               This agent may purchase verified data services using up to{' '}
               <button onClick={() => setSpendIndex((spendIndex + 1) % spendOptions.length)}>{spendOptions[spendIndex]} <ChevronDown size={16} /></button>{' '}
@@ -191,8 +217,9 @@ export default function Home() {
             </p>
             <div className="policy-footer">
               <div><span><Check size={13} /> 6 deterministic rules</span><span><Clock3 size={13} /> Expires Sep 13</span><span><KeyRound size={13} /> User confirmation required</span></div>
-              <Button>Review rules <ArrowRight size={15} /></Button>
+              <Button onClick={() => { setBoundaryConfirmed(false); setReviewOpen(true); }}>{policyActive ? 'Review active policy' : 'Review rules'} <ArrowRight size={15} /></Button>
             </div>
+            {policyActive && <div className="activation-receipt" role="status"><ShieldCheck size={17} /><div><strong>Demo policy activated</strong><span>Future simulated requests will be evaluated before signing.</span></div><small>Just now</small></div>}
           </div>
         </section>
 
@@ -219,6 +246,35 @@ export default function Home() {
           <div><a href="#product">Product</a><a href="#demo">Demo</a><a href="#policy">Policies</a></div>
         </footer>
       </div>
+
+      <Dialog open={reviewOpen} onOpenChange={setReviewOpen}>
+        <DialogContent className="policy-dialog" showCloseButton>
+          <DialogHeader>
+            <div className="dialog-icon"><ShieldCheck size={20} /></div>
+            <DialogTitle>Review the signing boundary</DialogTitle>
+            <DialogDescription>These deterministic rules would be checked before the Research Agent receives a signature.</DialogDescription>
+          </DialogHeader>
+          <div className="review-summary">
+            <div><span>Spend authority</span><strong>{spendOptions[spendIndex]} {periodOptions[periodIndex]}</strong></div>
+            <div><span>Allowed network</span><strong>{networkOptions[networkIndex]}</strong></div>
+            <div><span>Token approvals</span><strong>Exact amounts only</strong></div>
+          </div>
+          <div className="review-rules" aria-label="Rules to activate">
+            <div><Check size={14} /><span>Reject transfers above the remaining limit</span></div>
+            <div><Check size={14} /><span>Reject unapproved networks and contracts</span></div>
+            <div><Check size={14} /><span>Reject unlimited token approvals</span></div>
+          </div>
+          <label className="boundary-confirmation">
+            <Checkbox checked={boundaryConfirmed} onCheckedChange={setBoundaryConfirmed} />
+            <span>I understand this protects only requests routed through the policy-controlled signer.</span>
+          </label>
+          <div className="dialog-disclosure"><CircleAlert size={15} /><p>This prototype stages a demo policy. It does not connect to or control a real wallet.</p></div>
+          <DialogFooter className="policy-dialog-footer">
+            <Button variant="outline" onClick={() => setReviewOpen(false)}>Cancel</Button>
+            <Button onClick={activatePolicy} disabled={!boundaryConfirmed}>{policyActive ? 'Confirm policy again' : 'Activate demo policy'} <ArrowRight size={14} /></Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </main>
   );
 }
