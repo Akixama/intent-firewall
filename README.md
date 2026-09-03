@@ -2,7 +2,7 @@
 
 Intent Firewall is a policy layer for agentic wallets. It evaluates a proposed transaction against deterministic spending, network, destination, and approval rules before the request becomes eligible for signing.
 
-**Live demo:** https://intent-firewall-chi.vercel.app
+**Live demo:** https://intent-f.vercel.app
 
 ## What the demo shows
 

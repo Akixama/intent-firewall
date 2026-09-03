@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://intent-firewall-chi.vercel.app'),
+  metadataBase: new URL('https://intent-f.vercel.app'),
   title: 'Intent Firewall — Guardrails for Agentic Wallets',
   description:
     'Give AI agents enforceable wallet boundaries. Safe actions flow; everything else stops before signing.',
