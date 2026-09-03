@@ -16,6 +16,11 @@ export const metadata: Metadata = {
   title: 'Intent Firewall — Guardrails for Agentic Wallets',
   description:
     'Give AI agents enforceable wallet boundaries. Safe actions flow; everything else stops before signing.',
+  applicationName: 'Intent Firewall',
+  icons: {
+    icon: '/favicon.svg',
+    shortcut: '/favicon.svg',
+  },
 };
 
 export default function RootLayout({
