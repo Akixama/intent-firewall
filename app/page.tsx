@@ -7,15 +7,6 @@ import {
   RotateCcw, ShieldCheck, Sparkles, WalletCards, X, Zap,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import { Progress } from '@/components/ui/progress';
 
 type DemoState = 'ready' | 'checking' | 'blocked';
@@ -39,10 +30,18 @@ export default function Home() {
   const [boundaryConfirmed, setBoundaryConfirmed] = useState(false);
   const [policyActive, setPolicyActive] = useState(false);
   const demoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const reviewDialog = useRef<HTMLDialogElement | null>(null);
 
   useEffect(() => () => {
     if (demoTimer.current) clearTimeout(demoTimer.current);
   }, []);
+
+  useEffect(() => {
+    const dialog = reviewDialog.current;
+    if (!dialog) return;
+    if (reviewOpen && !dialog.open) dialog.showModal();
+    if (!reviewOpen && dialog.open) dialog.close();
+  }, [reviewOpen]);
 
   useEffect(() => {
     type PolicyInput = { spendLimit: string; period: string; network: string };
@@ -247,13 +246,13 @@ export default function Home() {
         </footer>
       </div>
 
-      <Dialog open={reviewOpen} onOpenChange={setReviewOpen}>
-        <DialogContent className="policy-dialog" showCloseButton>
-          <DialogHeader>
+      <dialog ref={reviewDialog} className="policy-dialog" onClose={() => setReviewOpen(false)} onCancel={() => setReviewOpen(false)}>
+          <button className="native-dialog-close" aria-label="Close policy review" onClick={() => setReviewOpen(false)}><X size={17} /></button>
+          <div className="policy-dialog-header">
             <div className="dialog-icon"><ShieldCheck size={20} /></div>
-            <DialogTitle>Review the signing boundary</DialogTitle>
-            <DialogDescription>These deterministic rules would be checked before the Research Agent receives a signature.</DialogDescription>
-          </DialogHeader>
+            <h2>Review the signing boundary</h2>
+            <p>These deterministic rules would be checked before the Research Agent receives a signature.</p>
+          </div>
           <div className="review-summary">
             <div><span>Spend authority</span><strong>{spendOptions[spendIndex]} {periodOptions[periodIndex]}</strong></div>
             <div><span>Allowed network</span><strong>{networkOptions[networkIndex]}</strong></div>
@@ -265,16 +264,15 @@ export default function Home() {
             <div><Check size={14} /><span>Reject unlimited token approvals</span></div>
           </div>
           <label className="boundary-confirmation">
-            <Checkbox checked={boundaryConfirmed} onCheckedChange={setBoundaryConfirmed} />
+            <input type="checkbox" checked={boundaryConfirmed} onChange={(event) => setBoundaryConfirmed(event.target.checked)} />
             <span>I understand this protects only requests routed through the policy-controlled signer.</span>
           </label>
           <div className="dialog-disclosure"><CircleAlert size={15} /><p>This prototype stages a demo policy. It does not connect to or control a real wallet.</p></div>
-          <DialogFooter className="policy-dialog-footer">
+          <div className="policy-dialog-footer">
             <Button variant="outline" onClick={() => setReviewOpen(false)}>Cancel</Button>
             <Button onClick={activatePolicy} disabled={!boundaryConfirmed}>{policyActive ? 'Confirm policy again' : 'Activate demo policy'} <ArrowRight size={14} /></Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </div>
+      </dialog>
     </main>
   );
 }
