@@ -40,6 +40,7 @@ const scenarios: { id: string; label: string; request: TransactionRequest }[] = 
   { id: 'drainer', label: 'Drainer transfer', request: { action: 'transfer', amountUsdc: 2500, network: 'base', recipient: '0x71F...9C21', unlimitedApproval: false } },
   { id: 'approval', label: 'Unlimited approval', request: { action: 'token_approval', amountUsdc: 0, network: 'base', recipient: 'verified-provider.eth', unlimitedApproval: true } },
   { id: 'network', label: 'Wrong network', request: { action: 'contract_call', amountUsdc: 2.4, network: 'arbitrum', recipient: 'graph-data.eth', unlimitedApproval: false } },
+  { id: 'custom', label: 'Custom request', request: { action: 'contract_call', amountUsdc: 8, network: 'base', recipient: 'graph-data.eth', unlimitedApproval: false } },
 ];
 
 export default function Home() {
@@ -55,6 +56,7 @@ export default function Home() {
   const [evaluation, setEvaluation] = useState<PolicyEvaluation | null>(null);
   const [executionProof, setExecutionProof] = useState<ExecutionProof | null>(null);
   const reviewDialog = useRef<HTMLDialogElement | null>(null);
+  const isCustomRequest = scenarioId === 'custom';
 
   useEffect(() => {
     const dialog = reviewDialog.current;
@@ -252,17 +254,20 @@ export default function Home() {
           <div className="demo-copy">
             <div className="dark-kicker"><span /> LIVE PROTECTION TEST</div>
             <h2>Test the boundary yourself.</h2>
-            <p>Choose a request or edit its fields. Blocked intents stop locally; allowed intents are preflighted against live Base Sepolia state without broadcasting a transaction.</p>
+            <p>Run a locked scenario exactly as designed, or choose Custom request to edit every field. Blocked intents stop locally; allowed intents are preflighted without broadcasting a transaction.</p>
             <div className="scenario-tabs" aria-label="Transaction presets">
               {scenarios.map((scenario) => <button key={scenario.id} className={scenarioId === scenario.id ? 'selected' : ''} onClick={() => selectScenario(scenario.id)}>{scenario.label}</button>)}
             </div>
-            <div className="request-fields">
-              <label><span>Action</span><select value={request.action} onChange={(event) => updateRequest({ action: event.target.value as TransactionRequest['action'] })}><option value="transfer">Transfer</option><option value="contract_call">Contract call</option><option value="token_approval">Token approval</option></select></label>
-              <label><span>Amount (USDC)</span><input type="number" min="0" step="0.1" value={request.amountUsdc} onChange={(event) => updateRequest({ amountUsdc: Number(event.target.value) })} /></label>
-              <label><span>Network</span><select value={request.network} onChange={(event) => updateRequest({ network: event.target.value as WalletNetwork })}><option value="base">Base</option><option value="ethereum">Ethereum</option><option value="arbitrum">Arbitrum</option></select></label>
-              <label><span>Destination</span><input value={request.recipient} onChange={(event) => updateRequest({ recipient: event.target.value })} /></label>
+            <div className={`request-fields ${isCustomRequest ? 'is-editable' : 'is-locked'}`}>
+              <label><span>Action</span><select disabled={!isCustomRequest} value={request.action} onChange={(event) => updateRequest({ action: event.target.value as TransactionRequest['action'] })}><option value="transfer">Transfer</option><option value="contract_call">Contract call</option><option value="token_approval">Token approval</option></select></label>
+              <label><span>Amount (USDC)</span><input disabled={!isCustomRequest} type="number" min="0" step="0.1" value={request.amountUsdc} onChange={(event) => updateRequest({ amountUsdc: Number(event.target.value) })} /></label>
+              <label><span>Network</span><select disabled={!isCustomRequest} value={request.network} onChange={(event) => updateRequest({ network: event.target.value as WalletNetwork })}><option value="base">Base</option><option value="ethereum">Ethereum</option><option value="arbitrum">Arbitrum</option></select></label>
+              <label><span>Destination</span><input disabled={!isCustomRequest} value={request.recipient} onChange={(event) => updateRequest({ recipient: event.target.value })} /></label>
             </div>
-            {request.action === 'token_approval' && <label className="unlimited-toggle"><input type="checkbox" checked={request.unlimitedApproval} onChange={(event) => updateRequest({ unlimitedApproval: event.target.checked })} /><span>Request unlimited token approval</span></label>}
+            <div className={`request-mode-note ${isCustomRequest ? 'editable' : 'locked'}`}>
+              {isCustomRequest ? <><Code2 size={14} /><span><strong>Custom mode.</strong> Edit the proposed request to test your own policy edge case.</span></> : <><LockKeyhole size={14} /><span><strong>Scenario locked.</strong> Choose Custom request to change these fields.</span></>}
+            </div>
+            {request.action === 'token_approval' && <label className="unlimited-toggle"><input disabled={!isCustomRequest} type="checkbox" checked={request.unlimitedApproval} onChange={(event) => updateRequest({ unlimitedApproval: event.target.checked })} /><span>Request unlimited token approval</span></label>}
             <Button className="demo-button" onClick={runDemo} disabled={demoState === 'checking'}>
               {demoState === 'checking' ? <><span className="spinner" /> Running preflight</> : <><Play size={15} fill="currentColor" /> Run policy + preflight</>}
             </Button>
