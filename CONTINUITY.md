@@ -14,7 +14,7 @@ Record every meaningful feature developed from September 4 onward here before su
 
 | Feature | Commit | What changed |
 | --- | --- | --- |
-| Submission documentation | _Add commit after pushing these files_ | Added an architecture diagram, demo script, project copy, AI disclosure and continuity record. |
+| Submission documentation | [`86f58dc`](https://github.com/Akixama/intent-firewall/commit/86f58dc762157c6d7ab306ed3db230809c2ce6f8) | Added an architecture diagram, demo script, project copy, AI disclosure and continuity record. |
 
 ## Recommended submission path
 
