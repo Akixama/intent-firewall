@@ -21,9 +21,17 @@ Intent Firewall can protect a wallet only when every agent-initiated action is r
 ## Stack
 
 - TypeScript and React
-- Next.js-compatible app structure powered by Vinext
-- Cloudflare Workers-compatible server route
+- Next.js App Router
+- Vercel serverless API route
 - Base Sepolia JSON-RPC preflight
+
+## Submission materials
+
+- [ETHOnline submission copy](SUBMISSION.md)
+- [Architecture diagram](docs/ARCHITECTURE.md)
+- [Three-minute demo script](docs/DEMO_SCRIPT.md)
+- [AI assistance disclosure](AI_USAGE.md)
+- [Project timeline and continuity disclosure](CONTINUITY.md)
 
 ## Run locally
 
