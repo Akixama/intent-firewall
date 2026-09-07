@@ -61,7 +61,7 @@ Intent Firewall is not another transaction-warning interface. It separates a hum
 
 ## Links
 
-- Live demo: https://intent-f.vercel.app
+- Live demo: https://intent-firewall-chi.vercel.app
 - Source code: https://github.com/Akixama/intent-firewall
 - Architecture: https://github.com/Akixama/intent-firewall/blob/main/docs/ARCHITECTURE.md
 
