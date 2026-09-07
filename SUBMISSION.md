@@ -20,6 +20,8 @@ Intent Firewall moves that decision into an enforceable policy boundary. The own
 
 The interactive demo makes the control boundary inspectable. A safe API payment passes five independent rules and receives a live Base Sepolia `eth_simulateV1` preflight proof. A drainer-style transfer fails both the destination allowlist and spending limit and is stopped before the RPC. A zero-value unlimited approval demonstrates that transaction value alone is not enough to judge risk. Locked scenarios preserve the meaning of the walkthrough, while Custom request mode lets judges test their own edge cases.
 
+Every result also receives a content-addressed audit receipt generated on the server. Separate SHA-256 fingerprints identify the active policy and requested intent, while a decision fingerprint binds those inputs to the rule results, verdict, timestamp, and execution evidence. Judges can copy the complete JSON proof directly from the interface.
+
 The prototype deliberately does not connect a wallet, request deposits, hold keys, create signatures or broadcast transactions. Its purpose is to demonstrate the authorization and preflight layer safely. A production version would place the same deterministic engine in front of a policy-controlled signer so every agent-initiated action must pass through the firewall.
 
 ## Problem
@@ -33,6 +35,7 @@ Wallet interfaces can explain what a transaction might do, but agentic wallets n
 - Rejection before network execution when any rule fails.
 - Live Base Sepolia preflight for allowed requests.
 - Evidence-rich receipts that explain every pass, failure and execution outcome.
+- Portable content-addressed receipts that bind policy, intent, verdict and execution evidence.
 - Explicit disclosure of the signer boundary and fallback behavior.
 
 ## Technical implementation
@@ -41,12 +44,13 @@ Wallet interfaces can explain what a transaction might do, but agentic wallets n
 - A server-side `/api/evaluate` route validates requests and keeps RPC behavior out of the browser.
 - A reusable deterministic policy engine returns structured rule results and remaining authority.
 - Allowed Base requests call Base Sepolia `eth_simulateV1` against pending state.
+- The server uses the Web Crypto API to canonicalize and hash the complete decision into an `ifw-v1` audit receipt.
 - Network failure produces a visibly labelled fallback rather than pretending a live call succeeded.
 - Vercel hosts the frontend and API; GitHub integration deploys the `main` branch.
 
 ## Originality and wow factor
 
-Intent Firewall is not another transaction-warning interface. It separates a human’s durable intent from an agent’s individual transaction proposal and produces a rule-by-rule authorization receipt before signing. The memorable moment is seeing a plausible drainer request fail two independent rules and stop before the RPC, immediately after a safe request produced live testnet execution evidence.
+Intent Firewall is not another transaction-warning interface. It separates a human’s durable intent from an agent’s individual transaction proposal and produces a rule-by-rule authorization receipt before signing. The memorable moment is seeing a plausible drainer request fail two independent rules and stop before the RPC, then receiving a portable cryptographic fingerprint of exactly what was requested, which policy evaluated it, and why the decision was made.
 
 ## Current limitations
 

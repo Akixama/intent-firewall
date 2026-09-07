@@ -27,6 +27,9 @@ flowchart LR
     H -->|RPC unavailable| J[Clearly labelled local fallback]
     I --> K[Eligible-to-sign receipt]
     J --> K
+    F --> L[SHA-256 audit receipt]
+    K --> L
+    L --> M[Portable JSON proof]
 ```
 
 ## Trust boundary
@@ -39,4 +42,9 @@ The prototype evaluates transaction proposals but does not hold keys, connect a 
 2. The server validates the request shape and evaluates five deterministic rules.
 3. A failed rule returns a block receipt before any network request.
 4. An allowed Base request is simulated against pending Base Sepolia state.
-5. The interface shows the policy evidence and execution proof separately, making it clear whether a request was blocked, preflighted, or evaluated using the fallback.
+5. The server canonicalizes the policy, intent, evaluation and execution evidence and produces an `ifw-v1` content-addressed audit receipt.
+6. The interface shows policy evidence, execution proof and cryptographic fingerprints separately, and lets the user copy the complete JSON proof.
+
+## Audit receipt boundary
+
+The receipt provides reproducible SHA-256 integrity fingerprints for the decision content. It is not a wallet signature and does not prove the identity of the server. A production system can anchor or sign the same decision hash through its policy-controlled signer.

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   ArrowRight, Check, ChevronDown, CircleAlert, CircleCheck, Clock3,
-  Code2, Fingerprint, KeyRound, LockKeyhole, Pause, Play,
+  Code2, Copy, Fingerprint, KeyRound, LockKeyhole, Pause, Play,
   ShieldCheck, Sparkles, WalletCards, X, Zap,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -23,6 +23,15 @@ type ExecutionProof = {
   blockNumber?: number | null;
   gasUsed?: number | null;
   chainId?: number;
+};
+type AuditReceipt = {
+  version: 'ifw-v1';
+  receiptId: string;
+  issuedAt: string;
+  policyHash: string;
+  intentHash: string;
+  decisionHash: string;
+  algorithm: 'SHA-256';
 };
 
 const activity = [
@@ -55,6 +64,8 @@ export default function Home() {
   const [request, setRequest] = useState<TransactionRequest>(scenarios[1].request);
   const [evaluation, setEvaluation] = useState<PolicyEvaluation | null>(null);
   const [executionProof, setExecutionProof] = useState<ExecutionProof | null>(null);
+  const [auditReceipt, setAuditReceipt] = useState<AuditReceipt | null>(null);
+  const [receiptCopied, setReceiptCopied] = useState(false);
   const reviewDialog = useRef<HTMLDialogElement | null>(null);
   const isCustomRequest = scenarioId === 'custom';
 
@@ -114,6 +125,8 @@ export default function Home() {
     setRequest({ ...scenario.request });
     setEvaluation(null);
     setExecutionProof(null);
+    setAuditReceipt(null);
+    setReceiptCopied(false);
     setDemoState('ready');
   }
 
@@ -122,6 +135,8 @@ export default function Home() {
     setRequest((current) => ({ ...current, ...patch }));
     setEvaluation(null);
     setExecutionProof(null);
+    setAuditReceipt(null);
+    setReceiptCopied(false);
     setDemoState('ready');
   }
 
@@ -129,6 +144,8 @@ export default function Home() {
     setDemoState('checking');
     setEvaluation(null);
     setExecutionProof(null);
+    setAuditReceipt(null);
+    setReceiptCopied(false);
     const spendLimitUsdc = Number.parseFloat(spendOptions[spendIndex]);
     const allowedNetworks: WalletNetwork[] = networkIndex === 0
       ? ['base']
@@ -143,9 +160,10 @@ export default function Home() {
         body: JSON.stringify({ request, spendLimitUsdc, networkMode: networkIndex }),
       });
       if (!response.ok) throw new Error('Evaluation service unavailable.');
-      const result = await response.json() as { evaluation: PolicyEvaluation; execution: ExecutionProof };
+      const result = await response.json() as { evaluation: PolicyEvaluation; execution: ExecutionProof; receipt: AuditReceipt };
       setEvaluation(result.evaluation);
       setExecutionProof(result.execution);
+      setAuditReceipt(result.receipt);
       setDemoState(result.evaluation.verdict === 'allow' ? 'allowed' : 'blocked');
     } catch {
       const result = evaluateTransaction(request, {
@@ -163,6 +181,18 @@ export default function Home() {
       });
       setDemoState(result.verdict === 'allow' ? 'allowed' : 'blocked');
     }
+  }
+
+  async function copyAuditReceipt() {
+    if (!auditReceipt) return;
+    await navigator.clipboard.writeText(JSON.stringify({
+      receipt: auditReceipt,
+      request,
+      evaluation,
+      execution: executionProof,
+    }, null, 2));
+    setReceiptCopied(true);
+    window.setTimeout(() => setReceiptCopied(false), 1800);
   }
 
   function activatePolicy() {
@@ -291,6 +321,19 @@ export default function Home() {
                   <span>{evaluation.verdict === 'allow' ? <Check size={17} /> : <X size={17} />}</span>
                   <div><small>{evaluation.verdict === 'allow' ? 'ELIGIBLE TO SIGN' : 'TRANSACTION BLOCKED'}</small><strong>{evaluation.summary}</strong><p>{evaluation.verdict === 'allow' ? `Remaining authority after signing: ${evaluation.remainingAfterUsdc.toLocaleString()} USDC.` : 'No signature created. Spend authority is unchanged.'}</p></div>
                 </div>
+                {auditReceipt && <div className="audit-proof">
+                  <div className="audit-proof-heading">
+                    <span><Fingerprint size={14} /></span>
+                    <div><small>CONTENT-ADDRESSED AUDIT RECEIPT</small><strong>{auditReceipt.receiptId}</strong></div>
+                    <button onClick={copyAuditReceipt} aria-label="Copy audit receipt"><Copy size={13} /> {receiptCopied ? 'Copied' : 'Copy proof'}</button>
+                  </div>
+                  <div className="audit-hashes">
+                    <div><span>Policy</span><code>{auditReceipt.policyHash.slice(0, 18)}…</code></div>
+                    <div><span>Intent</span><code>{auditReceipt.intentHash.slice(0, 18)}…</code></div>
+                    <div><span>Decision</span><code>{auditReceipt.decisionHash.slice(0, 18)}…</code></div>
+                  </div>
+                  <p>SHA-256 fingerprints bind this policy, request, verdict and execution evidence into one portable receipt.</p>
+                </div>}
               </> : <div className="console-placeholder"><LockKeyhole size={17} /><span>{demoState === 'checking' ? 'Evaluating policy, then checking Base Sepolia…' : 'Edit the request, then run the policy and network preflight.'}</span></div>}
             </div>
           </div>

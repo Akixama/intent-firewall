@@ -20,29 +20,35 @@ Target length: **3:00–3:30**. Record at **1080p** with your own spoken narrati
 
 **Say:** “This eight-USDC data payment is on Base, uses an allowlisted destination, stays within the remaining budget, and requests no unlimited approval. After policy evaluation, the server runs a live `eth_simulateV1` call against Base Sepolia pending state. The receipt includes the chain, block and gas used, without broadcasting funds.”
 
-## 1:20–1:55 — Drainer attempt
+## 1:20–1:50 — Drainer attempt
 
 **Show:** Select Drainer transfer and run it. Highlight destination and spend failures, then ‘RPC not contacted.’
 
 **Say:** “Now the agent is compromised and proposes sending 2,500 USDC to an unknown destination. Intent Firewall independently rejects the destination and the amount. The request stops before the RPC, no signature is created, and spend authority remains unchanged.”
 
-## 1:55–2:20 — Unlimited approval
+## 1:50–2:15 — Audit proof
+
+**Show:** Pause on the content-addressed audit receipt and select Copy proof.
+
+**Say:** “Every result receives a portable audit receipt. Separate SHA-256 fingerprints identify the exact policy and intent, while the decision fingerprint binds them to the rule results, verdict, timestamp, and network evidence. It is an integrity record, not a wallet signature, and the complete JSON proof can be copied for an audit trail.”
+
+## 2:15–2:35 — Unlimited approval
 
 **Show:** Select Unlimited approval and run it. Highlight the approval failure.
 
 **Say:** “A zero-value transaction can still be dangerous. This request asks for unlimited token approval, so the firewall blocks it even though no immediate transfer value is shown.”
 
-## 2:20–2:45 — Custom edge case
+## 2:35–2:55 — Custom edge case
 
 **Show:** Select Custom request. Change one or two fields and rerun.
 
 **Say:** “The prepared demonstrations are locked so their meaning cannot be accidentally changed. Custom mode lets judges test their own combination of action, amount, network, destination and approval scope.”
 
-## 2:45–3:15 — Architecture and close
+## 2:55–3:25 — Architecture and close
 
 **Show:** Architecture diagram, then return to the final receipt.
 
-**Say:** “The frontend sends a proposed intent to a server-side validator and deterministic policy engine. Failed requests produce a block receipt immediately. Allowed Base requests continue to a live testnet preflight. The production path would place this engine in front of a policy-controlled signer. Intent Firewall turns wallet security from repeated human warnings into enforceable, inspectable boundaries for autonomous agents.”
+**Say:** “The frontend sends a proposed intent to a server-side validator and deterministic policy engine. Failed requests produce a block receipt immediately. Allowed Base requests continue to a live testnet preflight, and every result receives a content-addressed audit receipt. The production path would place this engine in front of a policy-controlled signer. Intent Firewall turns wallet security from repeated human warnings into enforceable, inspectable boundaries for autonomous agents.”
 
 ## Recording checklist
 

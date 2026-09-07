@@ -11,6 +11,7 @@ Intent Firewall is a policy layer for agentic wallets. It evaluates a proposed t
 - An unlimited token approval blocked before signing.
 - A transaction on a network outside the configured policy.
 - A custom-request mode for testing additional policy edge cases.
+- A portable SHA-256 audit receipt that fingerprints the policy, request, verdict, and execution evidence.
 
 Allowed Base requests receive a live Base Sepolia `eth_simulateV1` preflight receipt. The simulation uses pending testnet state but does not broadcast a transaction, require a wallet connection, or move funds. Requests that fail policy evaluation never reach the RPC.
 
@@ -24,6 +25,7 @@ Intent Firewall can protect a wallet only when every agent-initiated action is r
 - Next.js App Router
 - Vercel serverless API route
 - Base Sepolia JSON-RPC preflight
+- Server-side Web Crypto audit receipts
 
 ## Submission materials
 
