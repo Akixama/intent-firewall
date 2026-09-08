@@ -16,6 +16,7 @@ Record every meaningful feature developed from September 4 onward here before su
 | --- | --- | --- |
 | Submission documentation | [`86f58dc`](https://github.com/Akixama/intent-firewall/commit/86f58dc762157c6d7ab306ed3db230809c2ce6f8) | Added an architecture diagram, demo script, project copy, AI disclosure and continuity record. |
 | Content-addressed audit receipts | [`a8296c9`](https://github.com/Akixama/intent-firewall/commit/a8296c9) | Added server-generated SHA-256 fingerprints for the policy, intent and complete decision; added portable JSON proof export and visible receipt evidence to the demo. |
+| Intent-to-calldata firewall | [`6cc0d34`](https://github.com/Akixama/intent-firewall/commit/6cc0d34) | Added ERC-20 calldata decoding, fail-closed unknown-selector handling, four-field substitution detection, claimed-versus-actual comparison, risk consequences, an intervention trail, and repeatable policy-engine tests. |
 
 ## Recommended submission path
 
