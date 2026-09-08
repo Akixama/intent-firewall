@@ -8,6 +8,7 @@ Intent Firewall is a policy layer for agentic wallets. It evaluates a proposed t
 
 - A safe API payment that passes every policy rule.
 - A drainer-style transfer blocked by the spending cap and destination allowlist.
+- A transaction-substitution attack where a claimed 7 USDC payment decodes to an unlimited token approval.
 - An unlimited token approval blocked before signing.
 - A transaction on a network outside the configured policy.
 - A custom-request mode for testing additional policy edge cases.
@@ -26,6 +27,13 @@ Intent Firewall can protect a wallet only when every agent-initiated action is r
 - Vercel serverless API route
 - Base Sepolia JSON-RPC preflight
 - Server-side Web Crypto audit receipts
+- Deterministic ERC-20 `transfer` and `approve` calldata decoding
+
+## Test the security engine
+
+```bash
+npm test
+```
 
 ## Submission materials
 

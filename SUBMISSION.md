@@ -10,7 +10,7 @@ Deterministic transaction guardrails that stop an AI wallet agent from exceeding
 
 ## Short description
 
-Intent Firewall evaluates every proposed agent transaction against explicit spending, network, destination and token-approval rules before it becomes eligible for signing. Unsafe requests stop locally; allowed Base requests receive a live Base Sepolia preflight receipt without connecting a wallet or moving funds.
+Intent Firewall decodes what an agent’s transaction actually does, compares it with what the agent claimed, and enforces explicit spending, network, destination and approval rules before signing. Unsafe requests stop locally; allowed Base requests receive a live Base Sepolia preflight receipt without connecting a wallet or moving funds.
 
 ## Full project description
 
@@ -18,7 +18,7 @@ AI agents can research, negotiate and execute faster than a person, but wallet a
 
 Intent Firewall moves that decision into an enforceable policy boundary. The owner defines what the agent may do: how much it can spend, which networks it can use, which destinations are approved, and whether unlimited token approvals are forbidden. Every proposed intent is evaluated by a deterministic policy engine before any signing step.
 
-The interactive demo makes the control boundary inspectable. A safe API payment passes five independent rules and receives a live Base Sepolia `eth_simulateV1` preflight proof. A drainer-style transfer fails both the destination allowlist and spending limit and is stopped before the RPC. A zero-value unlimited approval demonstrates that transaction value alone is not enough to judge risk. Locked scenarios preserve the meaning of the walkthrough, while Custom request mode lets judges test their own edge cases.
+The interactive demo makes the control boundary inspectable. A safe API payment passes six independent rules and receives a live Base Sepolia `eth_simulateV1` preflight proof. The signature scenario is a transaction-substitution attack: the agent claims it is paying 7 USDC to a verified data provider, while the raw calldata decodes to an unlimited ERC-20 approval for an unknown spender. Intent Firewall shows the claimed and decoded actions side by side, identifies four mismatches, explains the real-world exposure, and stops the request before the RPC. A separate drainer transfer fails the destination allowlist and spending limit. Locked scenarios preserve the walkthrough, while Custom request mode lets judges paste and test additional calldata.
 
 Every result also receives a content-addressed audit receipt generated on the server. Separate SHA-256 fingerprints identify the active policy and requested intent, while a decision fingerprint binds those inputs to the rule results, verdict, timestamp, and execution evidence. Judges can copy the complete JSON proof directly from the interface.
 
@@ -32,6 +32,8 @@ Wallet interfaces can explain what a transaction might do, but agentic wallets n
 
 - Human-readable policies backed by deterministic rules.
 - Independent checks for amount, network, destination, cumulative spend and approval scope.
+- Fail-closed decoding for ERC-20 `transfer` and `approve` calldata.
+- Claimed-intent versus decoded-call comparison with field-level mismatch evidence.
 - Rejection before network execution when any rule fails.
 - Live Base Sepolia preflight for allowed requests.
 - Evidence-rich receipts that explain every pass, failure and execution outcome.
@@ -43,6 +45,8 @@ Wallet interfaces can explain what a transaction might do, but agentic wallets n
 - React and TypeScript frontend using the Next.js App Router.
 - A server-side `/api/evaluate` route validates requests and keeps RPC behavior out of the browser.
 - A reusable deterministic policy engine returns structured rule results and remaining authority.
+- The policy engine decodes ERC-20 selectors and ABI words without trusting the agent’s description.
+- Unsupported or malformed calldata fails closed instead of continuing to execution.
 - Allowed Base requests call Base Sepolia `eth_simulateV1` against pending state.
 - The server uses the Web Crypto API to canonicalize and hash the complete decision into an `ifw-v1` audit receipt.
 - Network failure produces a visibly labelled fallback rather than pretending a live call succeeded.
@@ -50,7 +54,7 @@ Wallet interfaces can explain what a transaction might do, but agentic wallets n
 
 ## Originality and wow factor
 
-Intent Firewall is not another transaction-warning interface. It separates a human’s durable intent from an agent’s individual transaction proposal and produces a rule-by-rule authorization receipt before signing. The memorable moment is seeing a plausible drainer request fail two independent rules and stop before the RPC, then receiving a portable cryptographic fingerprint of exactly what was requested, which policy evaluated it, and why the decision was made.
+Intent Firewall is not another transaction-warning interface. It checks the encoded action rather than trusting an agent’s description. The memorable moment is seeing “Pay 7 USDC” decode into an unlimited approval, watching four mismatches light up, and seeing the request stop before any RPC or signature. The final receipt cryptographically fingerprints the claim, calldata, policy, verdict and execution evidence as one portable record.
 
 ## Current limitations
 
@@ -58,6 +62,7 @@ Intent Firewall is not another transaction-warning interface. It separates a hum
 - Live network preflight currently targets Base Sepolia for allowed Base requests.
 - Policy state is demonstration state and is not persisted across devices.
 - The recipient allowlist uses sample identifiers rather than live ENS resolution.
+- The calldata decoder currently supports ERC-20 `transfer` and `approve` with six-decimal demo amounts; production support would use token metadata and a broader ABI registry.
 
 ## Links
 

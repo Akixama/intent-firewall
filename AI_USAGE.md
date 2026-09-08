@@ -6,6 +6,7 @@ This project was developed with assistance from OpenAI Codex. AI assistance was 
 - drafting and implementing portions of the React/TypeScript interface;
 - implementing and testing the deterministic policy simulator and server route;
 - implementing the content-addressed audit receipt and proof export;
+- implementing and testing the ERC-20 calldata decoder and substitution-attack interface;
 - improving UI copy, interaction details and accessibility;
 - researching public technical documentation;
 - preparing deployment configuration and project documentation; and

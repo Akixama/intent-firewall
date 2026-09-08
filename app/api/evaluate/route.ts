@@ -93,7 +93,11 @@ function isTransactionRequest(value: Partial<TransactionRequest>): value is Tran
     typeof value.recipient === 'string' &&
     value.recipient.length > 0 &&
     value.recipient.length <= 120 &&
-    typeof value.unlimitedApproval === 'boolean'
+    typeof value.unlimitedApproval === 'boolean' &&
+    (value.calldata === undefined || (
+      typeof value.calldata === 'string' &&
+      value.calldata.length <= 5_000
+    ))
   );
 }
 

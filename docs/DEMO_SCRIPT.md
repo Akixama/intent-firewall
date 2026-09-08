@@ -14,41 +14,35 @@ Target length: **3:00–3:30**. Record at **1080p** with your own spoken narrati
 
 **Say:** “A policy describes exactly what the agent may spend, which networks and destinations it may use, and whether broad token approvals are permitted. The readable sentence is compiled into deterministic checks. In this prototype, activation configures the demonstration—it does not connect to a real wallet.”
 
-## 0:45–1:20 — Safe request
+## 0:45–1:15 — Safe request
 
-**Show:** Select Safe API payment and run the policy plus preflight. Pause on the five passing rules and execution proof.
+**Show:** Select Safe API payment and run the policy plus preflight. Pause on the six passing rules and execution proof.
 
 **Say:** “This eight-USDC data payment is on Base, uses an allowlisted destination, stays within the remaining budget, and requests no unlimited approval. After policy evaluation, the server runs a live `eth_simulateV1` call against Base Sepolia pending state. The receipt includes the chain, block and gas used, without broadcasting funds.”
 
-## 1:20–1:50 — Drainer attempt
+## 1:15–2:10 — Transaction substitution attack
+
+**Show:** Select Transaction substitution and run it. Pause on the claimed-versus-decoded comparison, the four mismatches, real-world consequence, and intervention trail.
+
+**Say:** “Here is the attack ordinary wallet prompts can miss. The agent claims it is paying seven USDC to a verified data provider. Intent Firewall decodes the raw transaction instead of trusting that description. The calldata is actually an unlimited token approval for an unknown spender. The action, destination, amount and approval scope all disagree, so the firewall stops the request before the RPC. The spender never receives authority over the wallet’s current or future token balance.”
+
+## 2:10–2:30 — Drainer attempt
 
 **Show:** Select Drainer transfer and run it. Highlight destination and spend failures, then ‘RPC not contacted.’
 
-**Say:** “Now the agent is compromised and proposes sending 2,500 USDC to an unknown destination. Intent Firewall independently rejects the destination and the amount. The request stops before the RPC, no signature is created, and spend authority remains unchanged.”
+**Say:** “A direct drainer attempt is blocked independently too. This 2,500-USDC transfer exceeds the remaining budget and targets an unapproved destination. No signature is created and spend authority remains unchanged.”
 
-## 1:50–2:15 — Audit proof
+## 2:30–2:50 — Audit proof
 
 **Show:** Pause on the content-addressed audit receipt and select Copy proof.
 
 **Say:** “Every result receives a portable audit receipt. Separate SHA-256 fingerprints identify the exact policy and intent, while the decision fingerprint binds them to the rule results, verdict, timestamp, and network evidence. It is an integrity record, not a wallet signature, and the complete JSON proof can be copied for an audit trail.”
 
-## 2:15–2:35 — Unlimited approval
-
-**Show:** Select Unlimited approval and run it. Highlight the approval failure.
-
-**Say:** “A zero-value transaction can still be dangerous. This request asks for unlimited token approval, so the firewall blocks it even though no immediate transfer value is shown.”
-
-## 2:35–2:55 — Custom edge case
-
-**Show:** Select Custom request. Change one or two fields and rerun.
-
-**Say:** “The prepared demonstrations are locked so their meaning cannot be accidentally changed. Custom mode lets judges test their own combination of action, amount, network, destination and approval scope.”
-
-## 2:55–3:25 — Architecture and close
+## 2:50–3:20 — Architecture and close
 
 **Show:** Architecture diagram, then return to the final receipt.
 
-**Say:** “The frontend sends a proposed intent to a server-side validator and deterministic policy engine. Failed requests produce a block receipt immediately. Allowed Base requests continue to a live testnet preflight, and every result receives a content-addressed audit receipt. The production path would place this engine in front of a policy-controlled signer. Intent Firewall turns wallet security from repeated human warnings into enforceable, inspectable boundaries for autonomous agents.”
+**Say:** “The server validates the request, decodes supported ERC-20 calldata, compares the encoded action with the agent’s claim, then applies deterministic policy rules. Failed requests stop before the RPC. Allowed Base requests continue to live testnet preflight, and every result receives a content-addressed receipt. The production path would place this engine in front of a controlled signer. Intent Firewall turns wallet security from repeated human warnings into enforceable boundaries for autonomous agents.”
 
 ## Recording checklist
 

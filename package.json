@@ -9,6 +9,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "test": "node --experimental-strip-types --test lib/policy-engine.test.ts",
     "lint": "oxlint",
     "format": "oxfmt"
   },

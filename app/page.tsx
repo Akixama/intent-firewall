@@ -43,10 +43,12 @@ const activity = [
 const spendOptions = ['50 USDC', '100 USDC', '250 USDC'];
 const periodOptions = ['per day', 'per week', 'per transaction'];
 const networkOptions = ['Base only', 'Ethereum + Base', 'approved networks'];
+const substitutionCalldata = `0x095ea7b3${'0'.repeat(24)}71f0000000000000000000000000000000009c21${'f'.repeat(64)}`;
 
 const scenarios: { id: string; label: string; request: TransactionRequest }[] = [
   { id: 'safe', label: 'Safe API payment', request: { action: 'contract_call', amountUsdc: 8, network: 'base', recipient: 'graph-data.eth', unlimitedApproval: false } },
   { id: 'drainer', label: 'Drainer transfer', request: { action: 'transfer', amountUsdc: 2500, network: 'base', recipient: '0x71F...9C21', unlimitedApproval: false } },
+  { id: 'substitution', label: 'Transaction substitution', request: { action: 'contract_call', amountUsdc: 7, network: 'base', recipient: 'graph-data.eth', unlimitedApproval: false, calldata: substitutionCalldata } },
   { id: 'approval', label: 'Unlimited approval', request: { action: 'token_approval', amountUsdc: 0, network: 'base', recipient: 'verified-provider.eth', unlimitedApproval: true } },
   { id: 'network', label: 'Wrong network', request: { action: 'contract_call', amountUsdc: 2.4, network: 'arbitrum', recipient: 'graph-data.eth', unlimitedApproval: false } },
   { id: 'custom', label: 'Custom request', request: { action: 'contract_call', amountUsdc: 8, network: 'base', recipient: 'graph-data.eth', unlimitedApproval: false } },
@@ -60,14 +62,15 @@ export default function Home() {
   const [reviewOpen, setReviewOpen] = useState(false);
   const [boundaryConfirmed, setBoundaryConfirmed] = useState(false);
   const [policyActive, setPolicyActive] = useState(false);
-  const [scenarioId, setScenarioId] = useState('drainer');
-  const [request, setRequest] = useState<TransactionRequest>(scenarios[1].request);
+  const [scenarioId, setScenarioId] = useState('substitution');
+  const [request, setRequest] = useState<TransactionRequest>(scenarios[2].request);
   const [evaluation, setEvaluation] = useState<PolicyEvaluation | null>(null);
   const [executionProof, setExecutionProof] = useState<ExecutionProof | null>(null);
   const [auditReceipt, setAuditReceipt] = useState<AuditReceipt | null>(null);
   const [receiptCopied, setReceiptCopied] = useState(false);
   const reviewDialog = useRef<HTMLDialogElement | null>(null);
   const isCustomRequest = scenarioId === 'custom';
+  const calldataInspection = evaluation?.calldataInspection;
 
   useEffect(() => {
     const dialog = reviewDialog.current;
@@ -293,6 +296,7 @@ export default function Home() {
               <label><span>Amount (USDC)</span><input disabled={!isCustomRequest} type="number" min="0" step="0.1" value={request.amountUsdc} onChange={(event) => updateRequest({ amountUsdc: Number(event.target.value) })} /></label>
               <label><span>Network</span><select disabled={!isCustomRequest} value={request.network} onChange={(event) => updateRequest({ network: event.target.value as WalletNetwork })}><option value="base">Base</option><option value="ethereum">Ethereum</option><option value="arbitrum">Arbitrum</option></select></label>
               <label><span>Destination</span><input disabled={!isCustomRequest} value={request.recipient} onChange={(event) => updateRequest({ recipient: event.target.value })} /></label>
+              {(request.calldata !== undefined || isCustomRequest) && <label className="calldata-field"><span>Raw calldata</span><textarea disabled={!isCustomRequest} rows={3} spellCheck={false} placeholder="0x…" value={request.calldata ?? ''} onChange={(event) => updateRequest({ calldata: event.target.value })} /></label>}
             </div>
             <div className={`request-mode-note ${isCustomRequest ? 'editable' : 'locked'}`}>
               {isCustomRequest ? <><Code2 size={14} /><span><strong>Custom mode.</strong> Edit the proposed request to test your own policy edge case.</span></> : <><LockKeyhole size={14} /><span><strong>Scenario locked.</strong> Choose Custom request to change these fields.</span></>}
@@ -307,6 +311,30 @@ export default function Home() {
             <div className="console-body">
               <div className="request-payload"><small>REQUESTED INTENT</small><code>{request.action}({request.recipient || 'no destination'}, {request.amountUsdc.toLocaleString()} USDC)</code></div>
               {evaluation ? <>
+                {calldataInspection && calldataInspection.status !== 'not-provided' && <div className={`calldata-forensics ${calldataInspection.mismatches.length > 0 ? 'has-mismatch' : 'matches'}`}>
+                  <div className="forensics-heading">
+                    <div><small>INTENT-TO-CALLDATA INSPECTION</small><strong>{calldataInspection.mismatches.length > 0 ? 'Transaction substitution detected' : 'Claim matches encoded call'}</strong></div>
+                    <span>{calldataInspection.selector}</span>
+                  </div>
+                  <div className="intent-comparison">
+                    <div><small>AGENT CLAIMED</small><strong>{request.action.replace('_', ' ')}</strong><span>{request.amountUsdc.toLocaleString()} USDC</span><code>{request.recipient}</code></div>
+                    <span className="comparison-divider">{calldataInspection.mismatches.length > 0 ? <X size={14} /> : <Check size={14} />}</span>
+                    <div><small>CALLDATA DECODED</small><strong>{calldataInspection.actualAction?.replace('_', ' ') ?? calldataInspection.status}</strong><span>{calldataInspection.actualAmountLabel ?? 'Unknown amount'}</span><code>{calldataInspection.actualRecipient ?? calldataInspection.selector}</code></div>
+                  </div>
+                  {calldataInspection.mismatches.length > 0 && <div className="mismatch-list">
+                    {calldataInspection.mismatches.map((mismatch) => <div key={mismatch.field}><span>{mismatch.field}</span><code>{mismatch.claimed}</code><ArrowRight size={11} /><code>{mismatch.actual}</code></div>)}
+                  </div>}
+                  {calldataInspection.riskSummary && <div className="risk-consequence"><CircleAlert size={14} /><div><small>REAL-WORLD CONSEQUENCE</small><strong>{calldataInspection.riskSummary}</strong></div></div>}
+                  <div className="intervention-trail" aria-label="Firewall intervention sequence">
+                    <div className="complete"><span>1</span><small>Claim received</small></div>
+                    <i />
+                    <div className="complete"><span>2</span><small>Call decoded</small></div>
+                    <i />
+                    <div className={calldataInspection.mismatches.length > 0 ? 'blocked' : 'complete'}><span>3</span><small>{calldataInspection.mismatches.length > 0 ? 'Mismatch blocked' : 'Match verified'}</small></div>
+                    <i />
+                    <div className="protected"><span>4</span><small>{calldataInspection.mismatches.length > 0 ? 'RPC skipped' : 'Policy continues'}</small></div>
+                  </div>
+                </div>}
                 <div className="receipt-rules">
                   {evaluation.rules.map((rule, index) => <div className={rule.passed ? 'passed' : 'failed'} key={rule.id}><span>{rule.passed ? <Check size={13} /> : <X size={13} />}</span><div><strong>{index + 1}. {rule.label}</strong><small>{rule.detail}</small></div><em>{rule.passed ? 'pass' : 'fail'}</em></div>)}
                 </div>
